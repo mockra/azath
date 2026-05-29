@@ -249,6 +249,14 @@ func printListPlain() error {
 		return err
 	}
 	live := liveSessions()
+	sort.SliceStable(projects, func(i, j int) bool {
+		ri := live[tmuxNameFor(cfg, projects[i].Name)]
+		rj := live[tmuxNameFor(cfg, projects[j].Name)]
+		if ri != rj {
+			return ri
+		}
+		return projects[i].Name < projects[j].Name
+	})
 	maxName := 0
 	for _, p := range projects {
 		if n := len(p.Name); n > maxName {
