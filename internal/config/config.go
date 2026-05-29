@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -32,33 +33,40 @@ type Project struct {
 	EditorPlacement string `toml:"editor-placement"`
 	StartWith       string `toml:"start-with"`
 	PostStart       string `toml:"post-start"`
+	IdleTimeout     string `toml:"idle-timeout"`
 }
 
 type raw struct {
-	AgentCommand    string             `toml:"agent-command"`
-	Editor          string             `toml:"editor"`
-	EditorPlacement string             `toml:"editor-placement"`
-	StartWith       string             `toml:"start-with"`
-	ProjectsRoot    []string           `toml:"projects-root"`
-	AutoDiscover    *bool              `toml:"auto-discover"`
-	Exclude         []string           `toml:"exclude"`
-	StateFile       string             `toml:"state-file"`
-	DashSession     string             `toml:"dash-session"`
-	Project         map[string]Project `toml:"project"`
+	AgentCommand     string             `toml:"agent-command"`
+	Editor           string             `toml:"editor"`
+	EditorPlacement  string             `toml:"editor-placement"`
+	StartWith        string             `toml:"start-with"`
+	ProjectsRoot     []string           `toml:"projects-root"`
+	AutoDiscover     *bool              `toml:"auto-discover"`
+	Exclude          []string           `toml:"exclude"`
+	StateFile        string             `toml:"state-file"`
+	DashSession      string             `toml:"dash-session"`
+	SessionPrefix    string             `toml:"session-prefix"`
+	CopilotSessionDir string            `toml:"copilot-session-dir"`
+	IdleTimeout      string             `toml:"idle-timeout"`
+	Project          map[string]Project `toml:"project"`
 }
 
 type Config struct {
-	AgentCommand    string
-	Editor          string
-	EditorPlacement Placement
-	StartWith       StartWith
-	ProjectsRoot    []string
-	AutoDiscover    bool
-	Exclude         []string
-	StateFile       string
-	DashSession     string
-	Projects        map[string]Project
-	Path            string
+	AgentCommand      string
+	Editor            string
+	EditorPlacement   Placement
+	StartWith         StartWith
+	ProjectsRoot      []string
+	AutoDiscover      bool
+	Exclude           []string
+	StateFile         string
+	DashSession       string
+	SessionPrefix     string
+	CopilotSessionDir string
+	IdleTimeout       string
+	Projects          map[string]Project
+	Path              string
 }
 
 func DefaultPath() string {
@@ -74,14 +82,15 @@ func DefaultPath() string {
 func defaults() Config {
 	home := os.Getenv("HOME")
 	return Config{
-		AgentCommand:    "copilot",
-		Editor:          "nvim",
-		EditorPlacement: PlacementWindow,
-		StartWith:       StartWithAgent,
-		AutoDiscover:    true,
-		StateFile:       filepath.Join(home, ".local", "share", "azath", "state.toml"),
-		DashSession:     "azath-dash",
-		Projects:        map[string]Project{},
+		AgentCommand:      "copilot",
+		Editor:            "nvim",
+		EditorPlacement:   PlacementWindow,
+		StartWith:         StartWithAgent,
+		AutoDiscover:      true,
+		StateFile:         filepath.Join(home, ".local", "share", "azath", "state.toml"),
+		DashSession:       "azath-dash",
+		CopilotSessionDir: filepath.Join(home, ".copilot", "session-state"),
+		Projects:          map[string]Project{},
 	}
 }
 
@@ -129,6 +138,15 @@ func Load(path string) (Config, error) {
 	if r.DashSession != "" {
 		cfg.DashSession = r.DashSession
 	}
+	if r.SessionPrefix != "" {
+		cfg.SessionPrefix = r.SessionPrefix
+	}
+	if r.CopilotSessionDir != "" {
+		cfg.CopilotSessionDir = r.CopilotSessionDir
+	}
+	if r.IdleTimeout != "" {
+		cfg.IdleTimeout = r.IdleTimeout
+	}
 	if r.Project != nil {
 		cfg.Projects = r.Project
 	}
@@ -148,6 +166,7 @@ func (c *Config) expandPaths() {
 		c.Exclude[i] = expand(p)
 	}
 	c.StateFile = expand(c.StateFile)
+	c.CopilotSessionDir = expand(c.CopilotSessionDir)
 	out := map[string]Project{}
 	for name, p := range c.Projects {
 		p.Path = expand(p.Path)
@@ -167,6 +186,11 @@ func (c *Config) validate() error {
 	default:
 		return fmt.Errorf("invalid start-with %q (want: agent, editor, shell)", c.StartWith)
 	}
+	if c.IdleTimeout != "" {
+		if _, err := time.ParseDuration(c.IdleTimeout); err != nil {
+			return fmt.Errorf("invalid idle-timeout %q: %w", c.IdleTimeout, err)
+		}
+	}
 	for name, p := range c.Projects {
 		if p.Path == "" {
 			return fmt.Errorf("project %q is missing path", name)
@@ -176,6 +200,11 @@ func (c *Config) validate() error {
 			case StartWithAgent, StartWithEditor, StartWithShell:
 			default:
 				return fmt.Errorf("project %q: invalid start-with %q (want: agent, editor, shell)", name, p.StartWith)
+			}
+		}
+		if p.IdleTimeout != "" {
+			if _, err := time.ParseDuration(p.IdleTimeout); err != nil {
+				return fmt.Errorf("project %q: invalid idle-timeout %q: %w", name, p.IdleTimeout, err)
 			}
 		}
 	}

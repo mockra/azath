@@ -116,6 +116,20 @@ func DetachClient() error {
 	return Run("detach-client")
 }
 
+// DetachSession detaches all clients attached to the named session.
+func DetachSession(name string) error {
+	return Run("detach-client", "-s", "="+name)
+}
+
+// CapturePane returns the contents of the named target pane (e.g. "session" or
+// "session:window.pane"). lines is the number of trailing lines to include.
+func CapturePane(target string, lines int) (string, error) {
+	if lines <= 0 {
+		lines = 200
+	}
+	return Output("capture-pane", "-t", target, "-p", "-S", fmt.Sprintf("-%d", lines))
+}
+
 // CurrentSession returns the name of the tmux session the caller is in, or "".
 func CurrentSession() string {
 	if os.Getenv("TMUX") == "" {

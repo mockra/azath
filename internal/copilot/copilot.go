@@ -7,16 +7,23 @@ import (
 	"strings"
 )
 
-func sessionStateDir() string {
+// DefaultSessionDir returns the conventional copilot session-state directory.
+func DefaultSessionDir() string {
 	return filepath.Join(os.Getenv("HOME"), ".copilot", "session-state")
 }
 
+func sessionStateDir() string { return DefaultSessionDir() }
+
 // SnapshotSessionIDs returns the set of existing copilot session IDs (UUID
-// directory names) before launching an agent. Compare with NewSessionIDs after
-// the agent starts to discover the new session ID.
+// directory names) in the default session-state dir.
 func SnapshotSessionIDs() (map[string]bool, error) {
+	return SnapshotSessionIDsDir(sessionStateDir())
+}
+
+// SnapshotSessionIDsDir snapshots UUID directory names in the given dir.
+func SnapshotSessionIDsDir(dir string) (map[string]bool, error) {
 	out := map[string]bool{}
-	entries, err := os.ReadDir(sessionStateDir())
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return out, nil
@@ -38,7 +45,12 @@ func SnapshotSessionIDs() (map[string]bool, error) {
 // NewestSessionSince returns the newest session-state UUID directory created
 // since the snapshot was taken. Returns "" if none found.
 func NewestSessionSince(before map[string]bool) (string, error) {
-	entries, err := os.ReadDir(sessionStateDir())
+	return NewestSessionSinceDir(before, sessionStateDir())
+}
+
+// NewestSessionSinceDir is the dir-explicit variant of NewestSessionSince.
+func NewestSessionSinceDir(before map[string]bool, dir string) (string, error) {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil

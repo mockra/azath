@@ -62,21 +62,27 @@ with `copilot --resume <id>`.
 | `azath up [project]` | Start or re-enter a House. No arg opens the dashboard. |
 | `azath down [project]` | Detach the House. `--kill` to terminate. |
 | `azath list [--watch\|--plain]` | List projects with status. `--plain` emits a colored, picker-friendly format. |
-| `azath dash` | Attach the `azath-dash` dashboard (fzf picker). |
+| `azath dash` | Attach the `azath-dash` dashboard. |
 | `azath pick` | Run the fzf picker once without a tmux session. |
 | `azath restart [--no-build]` | Rebuild via `make install` and recreate the dash session. |
 | `azath show <project>` | Print project details (used by the picker preview). |
 | `azath edit [project]` | Open editor in the House per `editor-placement`. |
 | `azath resume [project]` | Force cold-resume from saved Copilot session ID. |
+| `azath logs [project] [-n N]` | Print the last N lines of the project's main pane (default 200). |
+| `azath kill-all [--yes]` | Kill every running project session (skips `azath-dash`). |
+| `azath sweep [--dry-run]` | Kill sessions whose `LastUsedAt` exceeds `idle-timeout`. |
+| `azath new <name> [path]` | Append a `[project.<name>]` block to your config. |
 | `azath config` | Print the merged effective config. |
 | `azath doctor` | Verify tmux, copilot, nvim, fzf, and config paths. |
 
 ## Dashboard
 
 `azath dash` launches an fzf picker inside the `azath-dash` tmux session showing
-every project with a live up/down indicator. Bindings:
+every project with a live up/down indicator (running projects sort to the top).
+Bindings:
 
 - `enter` start or switch to the selected project
+- `ctrl-e` open the editor in the selected project's House
 - `ctrl-x` kill the selected project's tmux session
 - `ctrl-r` refresh the project list
 - `esc` switch tmux to the last-attached session
@@ -84,3 +90,9 @@ every project with a live up/down indicator. Bindings:
 A preview pane on the right shows status, path, agent, editor placement,
 saved Copilot session ID, and current tmux windows for the selected project.
 Requires `fzf` on `PATH`.
+
+## Idle timeout
+
+Set `idle-timeout` globally or per-project (e.g. `"4h"`) and run `azath sweep`
+(manually or from cron/launchd) to kill sessions whose `LastUsedAt` exceeds
+the threshold. Use `--dry-run` to preview first.

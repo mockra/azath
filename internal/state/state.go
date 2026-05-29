@@ -71,3 +71,20 @@ func (s *State) Set(name string, sess Session) {
 func (s *State) Delete(name string) {
 	delete(s.Sessions, name)
 }
+
+// Prune removes session entries whose name is not in keep. Returns the names
+// that were pruned. Caller is responsible for Save().
+func (s *State) Prune(keep []string) []string {
+	set := make(map[string]bool, len(keep))
+	for _, k := range keep {
+		set[k] = true
+	}
+	var removed []string
+	for name := range s.Sessions {
+		if !set[name] {
+			removed = append(removed, name)
+			delete(s.Sessions, name)
+		}
+	}
+	return removed
+}

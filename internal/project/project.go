@@ -17,6 +17,7 @@ type Project struct {
 	EditorPlacement config.Placement
 	StartWith       config.StartWith
 	PostStart       string
+	IdleTimeout     string
 	FromConfig      bool
 }
 
@@ -89,6 +90,7 @@ func merge(name string, p config.Project, cfg config.Config, fromConfig bool) Pr
 		EditorPlacement: config.Placement(p.EditorPlacement),
 		StartWith:       config.StartWith(p.StartWith),
 		PostStart:       p.PostStart,
+		IdleTimeout:     p.IdleTimeout,
 		FromConfig:      fromConfig,
 	}
 	if out.AgentCommand == "" {
@@ -102,6 +104,9 @@ func merge(name string, p config.Project, cfg config.Config, fromConfig bool) Pr
 	}
 	if out.StartWith == "" {
 		out.StartWith = cfg.StartWith
+	}
+	if out.IdleTimeout == "" {
+		out.IdleTimeout = cfg.IdleTimeout
 	}
 	return out
 }
