@@ -15,6 +15,7 @@ type Project struct {
 	AgentCommand    string
 	Editor          string
 	EditorPlacement config.Placement
+	StartWith       config.StartWith
 	PostStart       string
 	FromConfig      bool
 }
@@ -86,6 +87,7 @@ func merge(name string, p config.Project, cfg config.Config, fromConfig bool) Pr
 		AgentCommand:    p.AgentCommand,
 		Editor:          p.Editor,
 		EditorPlacement: config.Placement(p.EditorPlacement),
+		StartWith:       config.StartWith(p.StartWith),
 		PostStart:       p.PostStart,
 		FromConfig:      fromConfig,
 	}
@@ -97,6 +99,9 @@ func merge(name string, p config.Project, cfg config.Config, fromConfig bool) Pr
 	}
 	if out.EditorPlacement == "" {
 		out.EditorPlacement = cfg.EditorPlacement
+	}
+	if out.StartWith == "" {
+		out.StartWith = cfg.StartWith
 	}
 	return out
 }

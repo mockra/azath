@@ -107,6 +107,7 @@ func cmdConfig() error {
 	fmt.Printf("agent-command = %q\n", cfg.AgentCommand)
 	fmt.Printf("editor = %q\n", cfg.Editor)
 	fmt.Printf("editor-placement = %q\n", cfg.EditorPlacement)
+	fmt.Printf("start-with = %q\n", cfg.StartWith)
 	fmt.Printf("projects-root = %v\n", cfg.ProjectsRoot)
 	fmt.Printf("auto-discover = %v\n", cfg.AutoDiscover)
 	fmt.Printf("state-file = %q\n", cfg.StateFile)
@@ -114,13 +115,13 @@ func cmdConfig() error {
 	fmt.Println()
 	fmt.Println("# Resolved projects:")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tPATH\tAGENT\tEDITOR\tPLACEMENT\tSOURCE")
+	fmt.Fprintln(w, "NAME\tPATH\tAGENT\tEDITOR\tPLACEMENT\tSTART\tSOURCE")
 	for _, p := range projects {
 		src := "auto"
 		if p.FromConfig {
 			src = "config"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", p.Name, p.Path, p.AgentCommand, p.Editor, p.EditorPlacement, src)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", p.Name, p.Path, p.AgentCommand, p.Editor, p.EditorPlacement, p.StartWith, src)
 	}
 	return w.Flush()
 }
@@ -362,11 +363,14 @@ func cmdUp(args []string) error {
 		}
 	}
 
-	agentCmd := buildAgentCommand(p, resumeID)
+	startCmd, startsAgent := buildStartCommand(p, resumeID)
 
-	before, _ := copilot.SnapshotSessionIDs()
+	var before map[string]bool
+	if startsAgent {
+		before, _ = copilot.SnapshotSessionIDs()
+	}
 
-	if err := tmux.NewDetached(sessionName, p.Path, agentCmd); err != nil {
+	if err := tmux.NewDetached(sessionName, p.Path, startCmd); err != nil {
 		return err
 	}
 
@@ -374,27 +378,29 @@ func cmdUp(args []string) error {
 		_ = tmux.Run("new-window", "-t", "="+sessionName, "-n", "post-start", "-c", p.Path, p.PostStart)
 	}
 
-	// Give copilot a moment to write its session-state dir.
-	go func() {
-		time.Sleep(3 * time.Second)
-		id, _ := copilot.NewestSessionSince(before)
-		if id == "" {
-			return
-		}
-		st2, err := state.Load(cfg.StateFile)
-		if err != nil {
-			return
-		}
-		s, _ := st2.Get(p.Name)
-		s.TmuxSession = sessionName
-		s.CopilotSessionID = id
-		if s.StartedAt.IsZero() {
-			s.StartedAt = time.Now()
-		}
-		s.LastUsedAt = time.Now()
-		st2.Set(p.Name, s)
-		_ = st2.Save()
-	}()
+	if startsAgent {
+		// Give copilot a moment to write its session-state dir.
+		go func() {
+			time.Sleep(3 * time.Second)
+			id, _ := copilot.NewestSessionSince(before)
+			if id == "" {
+				return
+			}
+			st2, err := state.Load(cfg.StateFile)
+			if err != nil {
+				return
+			}
+			s, _ := st2.Get(p.Name)
+			s.TmuxSession = sessionName
+			s.CopilotSessionID = id
+			if s.StartedAt.IsZero() {
+				s.StartedAt = time.Now()
+			}
+			s.LastUsedAt = time.Now()
+			st2.Set(p.Name, s)
+			_ = st2.Save()
+		}()
+	}
 
 	now := time.Now()
 	s, _ := st.Get(p.Name)
@@ -405,6 +411,23 @@ func cmdUp(args []string) error {
 	_ = st.Save()
 
 	return tmux.AttachOrSwitch(sessionName)
+}
+
+// buildStartCommand returns the shell command to run as the project session's
+// first window, and whether that command launches the agent (used to gate
+// copilot session-ID capture).
+func buildStartCommand(p project.Project, resumeID string) (string, bool) {
+	switch p.StartWith {
+	case config.StartWithShell:
+		return "", false
+	case config.StartWithEditor:
+		if strings.TrimSpace(p.Editor) == "" {
+			return "", false
+		}
+		return p.Editor + " .", false
+	default:
+		return buildAgentCommand(p, resumeID), true
+	}
 }
 
 func buildAgentCommand(p project.Project, resumeID string) string {

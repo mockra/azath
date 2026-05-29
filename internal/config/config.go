@@ -17,11 +17,20 @@ const (
 	PlacementPaneBottom  Placement = "pane-bottom"
 )
 
+type StartWith string
+
+const (
+	StartWithAgent  StartWith = "agent"
+	StartWithEditor StartWith = "editor"
+	StartWithShell  StartWith = "shell"
+)
+
 type Project struct {
 	Path            string `toml:"path"`
 	AgentCommand    string `toml:"agent-command"`
 	Editor          string `toml:"editor"`
 	EditorPlacement string `toml:"editor-placement"`
+	StartWith       string `toml:"start-with"`
 	PostStart       string `toml:"post-start"`
 }
 
@@ -29,6 +38,7 @@ type raw struct {
 	AgentCommand    string             `toml:"agent-command"`
 	Editor          string             `toml:"editor"`
 	EditorPlacement string             `toml:"editor-placement"`
+	StartWith       string             `toml:"start-with"`
 	ProjectsRoot    []string           `toml:"projects-root"`
 	AutoDiscover    *bool              `toml:"auto-discover"`
 	Exclude         []string           `toml:"exclude"`
@@ -41,6 +51,7 @@ type Config struct {
 	AgentCommand    string
 	Editor          string
 	EditorPlacement Placement
+	StartWith       StartWith
 	ProjectsRoot    []string
 	AutoDiscover    bool
 	Exclude         []string
@@ -66,6 +77,7 @@ func defaults() Config {
 		AgentCommand:    "copilot",
 		Editor:          "nvim",
 		EditorPlacement: PlacementWindow,
+		StartWith:       StartWithAgent,
 		AutoDiscover:    true,
 		StateFile:       filepath.Join(home, ".local", "share", "azath", "state.toml"),
 		DashSession:     "azath-dash",
@@ -98,6 +110,9 @@ func Load(path string) (Config, error) {
 	}
 	if r.EditorPlacement != "" {
 		cfg.EditorPlacement = Placement(r.EditorPlacement)
+	}
+	if r.StartWith != "" {
+		cfg.StartWith = StartWith(r.StartWith)
 	}
 	if len(r.ProjectsRoot) > 0 {
 		cfg.ProjectsRoot = r.ProjectsRoot
@@ -147,9 +162,21 @@ func (c *Config) validate() error {
 	default:
 		return fmt.Errorf("invalid editor-placement %q (want: window, pane-right, pane-bottom)", c.EditorPlacement)
 	}
+	switch c.StartWith {
+	case StartWithAgent, StartWithEditor, StartWithShell:
+	default:
+		return fmt.Errorf("invalid start-with %q (want: agent, editor, shell)", c.StartWith)
+	}
 	for name, p := range c.Projects {
 		if p.Path == "" {
 			return fmt.Errorf("project %q is missing path", name)
+		}
+		if p.StartWith != "" {
+			switch StartWith(p.StartWith) {
+			case StartWithAgent, StartWithEditor, StartWithShell:
+			default:
+				return fmt.Errorf("project %q: invalid start-with %q (want: agent, editor, shell)", name, p.StartWith)
+			}
 		}
 	}
 	return nil

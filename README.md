@@ -29,6 +29,7 @@ Default location: `~/.config/azath/config.toml`
 agent-command = "copilot"
 editor = "nvim"
 editor-placement = "window"        # window | pane-right | pane-bottom
+start-with = "agent"               # agent | editor | shell
 projects-root = ["~/code", "~/github"]
 auto-discover = true
 exclude = ["~/code/exercism"]
@@ -41,6 +42,11 @@ editor-placement = "pane-right"
 [project.github]
 path = "~/github/github"
 agent-command = "github-dev"
+start-with = "editor"               # skip the agent; open nvim in the first window
+
+[project.home]
+path = "~"
+start-with = "shell"                # plain login shell
 ```
 
 ## State
