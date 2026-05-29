@@ -200,17 +200,37 @@ func printListPlain() error {
 	}
 	for _, p := range projects {
 		sessionName := tmuxNameFor(cfg, p.Name)
-		mark := "\033[2m○\033[0m"
-		if live[sessionName] {
-			mark = "\033[32m●\033[0m"
+		info := collectDashInfo(cfg, st, p, sessionName, live[sessionName])
+		mark := markGlyph(info.activity)
+		if u := unreadGlyph(info.unread); u != "" {
+			// Attach the unread bell directly to the mark so fzf still
+			// sees a single status field.
+			mark = mark + u
 		}
 		last := "-"
 		if s, ok := st.Get(p.Name); ok && !s.LastUsedAt.IsZero() {
 			last = humanize(s.LastUsedAt)
 		}
-		fmt.Printf("%s  %-*s  %-*s  %s\n", mark, maxName, p.Name, maxPath, p.Path, last)
+		row := fmt.Sprintf("%s  %-*s  %-*s  %s", mark, maxName, p.Name, maxPath, p.Path, last)
+		if info.lastMessage != "" {
+			// Dim the trailing summary so it doesn't dominate the row.
+			row += fmt.Sprintf("  \033[2m| %s\033[0m", truncateRunes(info.lastMessage, 60))
+		}
+		fmt.Println(row)
 	}
 	return nil
+}
+
+// truncateRunes shortens s to at most max runes, appending an ellipsis when cut.
+func truncateRunes(s string, max int) string {
+	if max <= 0 {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max-1]) + "…"
 }
 
 // pruneStaleState removes state entries for projects that no longer exist.

@@ -50,6 +50,7 @@ func cmdUp(args []string) error {
 	if tmux.HasSession(sessionName) {
 		s, _ := st.Get(p.Name)
 		s.LastUsedAt = time.Now()
+		s.LastSeenPaneHash = tmux.PaneHash(sessionName+":", paneCaptureLines)
 		st.Set(p.Name, s)
 		_ = st.Save()
 		return tmux.AttachOrSwitch(sessionName)

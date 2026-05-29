@@ -78,7 +78,19 @@ with `copilot --resume <id>`.
 ## Dashboard
 
 `azath dash` launches an fzf picker inside the `azath-dash` tmux session showing
-every project with a live up/down indicator (running projects sort to the top).
+every project with a live status indicator (running projects sort to the top).
+
+Status glyphs:
+
+- `●` magenta — agent is actively working (events.jsonl changed within 5s)
+- `●` green — running, idle
+- `○` dim — stopped
+- `*` yellow — unread pane output since you last attached
+
+The trailing column shows the most recent prompt you sent to the agent for
+that House, so you can see at a glance what each one is doing without
+entering it.
+
 Bindings:
 
 - `enter` start or switch to the selected project
@@ -88,8 +100,8 @@ Bindings:
 - `esc` switch tmux to the last-attached session
 
 A preview pane on the right shows status, path, agent, editor placement,
-saved Copilot session ID, and current tmux windows for the selected project.
-Requires `fzf` on `PATH`.
+saved Copilot session ID, last activity, the last user prompt, and current
+tmux windows for the selected project. Requires `fzf` on `PATH`.
 
 ## Idle timeout
 

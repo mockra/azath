@@ -175,12 +175,12 @@ func cmdShow(args []string) error {
 	}
 	sessionName := tmuxNameFor(cfg, p.Name)
 	running := tmux.HasSession(sessionName)
-	status := "stopped"
-	if running {
-		status = "running"
-	}
+	info := collectDashInfo(cfg, st, p, sessionName, running)
 	fmt.Printf("%s\n", p.Name)
-	fmt.Printf("status   %s\n", status)
+	fmt.Printf("status   %s\n", activityLabel(info.activity))
+	if info.unread {
+		fmt.Printf("unread   yes\n")
+	}
 	fmt.Printf("path     %s\n", p.Path)
 	fmt.Printf("agent    %s\n", p.AgentCommand)
 	fmt.Printf("editor   %s (%s)\n", p.Editor, p.EditorPlacement)
@@ -195,6 +195,14 @@ func cmdShow(args []string) error {
 		if s.CopilotSessionID != "" {
 			fmt.Printf("session  %s\n", s.CopilotSessionID)
 		}
+	}
+	if !info.lastEvents.IsZero() {
+		fmt.Printf("activity %s\n", humanize(info.lastEvents))
+	}
+	if info.lastMessage != "" {
+		fmt.Println()
+		fmt.Println("last prompt")
+		fmt.Printf("  %s\n", info.lastMessage)
 	}
 	if running {
 		if wins, err := tmux.ListWindows(sessionName); err == nil && len(wins) > 0 {

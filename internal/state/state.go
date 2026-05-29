@@ -14,6 +14,10 @@ type Session struct {
 	CopilotSessionID string    `toml:"copilot-session-id,omitempty"`
 	StartedAt        time.Time `toml:"started-at"`
 	LastUsedAt       time.Time `toml:"last-used-at"`
+	// LastSeenPaneHash is a fingerprint of the main pane content the last
+	// time the user attached. Compared against the current pane hash to
+	// derive the unread indicator in the dashboard.
+	LastSeenPaneHash string `toml:"last-seen-pane-hash,omitempty"`
 }
 
 type State struct {

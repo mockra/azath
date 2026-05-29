@@ -1,6 +1,8 @@
 package tmux
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -128,6 +130,17 @@ func CapturePane(target string, lines int) (string, error) {
 		lines = 200
 	}
 	return Output("capture-pane", "-t", target, "-p", "-S", fmt.Sprintf("-%d", lines))
+}
+
+// PaneHash returns a short hex fingerprint of the trailing pane content.
+// Returns "" without error when the session/pane is missing.
+func PaneHash(target string, lines int) string {
+	out, err := CapturePane(target, lines)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(out))
+	return hex.EncodeToString(sum[:8])
 }
 
 // CurrentSession returns the name of the tmux session the caller is in, or "".
