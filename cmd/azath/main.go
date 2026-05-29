@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -27,6 +28,7 @@ Usage:
   azath list [--watch|--plain]    List projects with status.
   azath dash                      Open the dashboard (fzf picker).
   azath pick                      Run the fzf picker once (no tmux session).
+  azath restart [--no-build]      Rebuild azath and recreate the dash session.
   azath show <project>            Print project details (used by picker preview).
   azath edit [project]            Open the editor for a project.
   azath resume [project]          Force cold-resume from saved session ID.
@@ -59,6 +61,8 @@ func run(args []string) error {
 		return cmdDash()
 	case "pick":
 		return cmdPick()
+	case "restart":
+		return cmdRestart(rest)
 	case "show":
 		return cmdShow(rest)
 	case "edit":
@@ -543,6 +547,67 @@ func cmdPick() error {
 			fmt.Fprintln(os.Stderr, "azath:", err)
 		}
 	}
+}
+
+func cmdRestart(args []string) error {
+	build := true
+	for _, a := range args {
+		switch a {
+		case "--no-build":
+			build = false
+		default:
+			return fmt.Errorf("unknown arg %q", a)
+		}
+	}
+
+	if build {
+		dir, err := sourceDir()
+		if err != nil {
+			return fmt.Errorf("locate azath source: %w", err)
+		}
+		fmt.Printf("Building azath in %s...\n", dir)
+		cmd := exec.Command("make", "install")
+		cmd.Dir = dir
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("rebuild: %w", err)
+		}
+	}
+
+	cfg, _, _, err := loadAll()
+	if err != nil {
+		return err
+	}
+
+	if tmux.CurrentSession() == cfg.DashSession {
+		return fmt.Errorf("cannot restart while attached to %q; run from another tmux session or outside tmux", cfg.DashSession)
+	}
+
+	if tmux.HasSession(cfg.DashSession) {
+		if err := tmux.KillSession(cfg.DashSession); err != nil {
+			return err
+		}
+		fmt.Printf("Killed %s.\n", cfg.DashSession)
+	}
+
+	return cmdDash()
+}
+
+func sourceDir() (string, error) {
+	bin, err := exec.LookPath("azath")
+	if err != nil {
+		return "", err
+	}
+	real, err := filepath.EvalSymlinks(bin)
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Dir(real)
+	if _, err := os.Stat(filepath.Join(dir, "Makefile")); err != nil {
+		return "", fmt.Errorf("no Makefile at %s", dir)
+	}
+	return dir, nil
 }
 
 func cmdShow(args []string) error {

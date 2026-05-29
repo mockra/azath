@@ -58,6 +58,7 @@ with `copilot --resume <id>`.
 | `azath list [--watch\|--plain]` | List projects with status. `--plain` emits a colored, picker-friendly format. |
 | `azath dash` | Attach the `azath-dash` dashboard (fzf picker). |
 | `azath pick` | Run the fzf picker once without a tmux session. |
+| `azath restart [--no-build]` | Rebuild via `make install` and recreate the dash session. |
 | `azath show <project>` | Print project details (used by the picker preview). |
 | `azath edit [project]` | Open editor in the House per `editor-placement`. |
 | `azath resume [project]` | Force cold-resume from saved Copilot session ID. |
