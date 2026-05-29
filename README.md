@@ -4,6 +4,8 @@ A tmux + Copilot CLI orchestrator. Each project lives in its own House (tmux
 session) with persistent agent sessions that survive detach, terminal restarts,
 and reboots.
 
+![azath demo](demo/azath.gif)
+
 ## Install
 
 ```sh
