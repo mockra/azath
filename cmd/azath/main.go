@@ -516,12 +516,13 @@ func cmdPick() error {
 		fzf := exec.Command("fzf",
 			"--ansi", "--reverse", "--no-sort", "--no-mouse", "--cycle",
 			"--prompt", "azath> ",
-			"--header", "enter: up   ^x: kill   ^r: refresh   esc: quit",
+			"--header", "enter: up   ^x: kill   ^r: refresh   esc: last session",
 			"--delimiter", `[[:space:]]+`, "--nth", "2",
 			"--preview", preview,
 			"--preview-window", "right:50%:wrap",
 			"--bind", fmt.Sprintf("ctrl-x:execute-silent(%s down --kill {2})+reload(%s)", bin, reload),
 			"--bind", fmt.Sprintf("ctrl-r:reload(%s)", reload),
+			"--bind", "esc:execute-silent(tmux switch-client -l)",
 		)
 		fzf.Stdin = strings.NewReader(string(input))
 		fzf.Stderr = os.Stderr

@@ -73,7 +73,7 @@ every project with a live up/down indicator. Bindings:
 - `enter` start or switch to the selected project
 - `ctrl-x` kill the selected project's tmux session
 - `ctrl-r` refresh the project list
-- `esc` quit the picker
+- `esc` switch tmux to the last-attached session
 
 A preview pane on the right shows status, path, agent, editor placement,
 saved Copilot session ID, and current tmux windows for the selected project.
