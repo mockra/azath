@@ -309,9 +309,16 @@ func humanize(t time.Time) string {
 	}
 }
 
+// tmuxNameFor builds the tmux session name for a project. tmux rewrites "."
+// and ":" in session names, so we sanitise up front to keep lookups
+// round-tripping.
 func tmuxNameFor(cfg config.Config, project string) string {
 	_ = cfg
-	return project
+	return sanitizeSessionName(project)
+}
+
+func sanitizeSessionName(s string) string {
+	return strings.NewReplacer(".", "_", ":", "_").Replace(s)
 }
 
 type upOpts struct {
