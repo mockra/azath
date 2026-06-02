@@ -232,7 +232,7 @@ func printList() error {
 	for _, p := range projects {
 		status := "stopped"
 		sessionName := tmuxNameFor(cfg, p.Name)
-		if live[sessionName] {
+		if _, ok := live[sessionName]; ok {
 			status = "running"
 		}
 		last := "-"
@@ -251,10 +251,13 @@ func printListPlain() error {
 	}
 	live := liveSessions()
 	sort.SliceStable(projects, func(i, j int) bool {
-		ri := live[tmuxNameFor(cfg, projects[i].Name)]
-		rj := live[tmuxNameFor(cfg, projects[j].Name)]
-		if ri != rj {
-			return ri
+		ti, oki := live[tmuxNameFor(cfg, projects[i].Name)]
+		tj, okj := live[tmuxNameFor(cfg, projects[j].Name)]
+		if oki != okj {
+			return oki
+		}
+		if oki && ti != tj {
+			return ti > tj
 		}
 		return projects[i].Name < projects[j].Name
 	})
@@ -273,7 +276,7 @@ func printListPlain() error {
 	for _, p := range projects {
 		sessionName := tmuxNameFor(cfg, p.Name)
 		mark := "\033[2m○\033[0m"
-		if live[sessionName] {
+		if _, ok := live[sessionName]; ok {
 			mark = "\033[32m●\033[0m"
 		}
 		last := "-"
@@ -285,14 +288,12 @@ func printListPlain() error {
 	return nil
 }
 
-func liveSessions() map[string]bool {
-	live := map[string]bool{}
-	if sessions, err := tmux.ListSessions(); err == nil {
-		for _, s := range sessions {
-			live[s] = true
-		}
+func liveSessions() map[string]int64 {
+	res, _ := tmux.ListSessionsWithLastAttached()
+	if res == nil {
+		res = map[string]int64{}
 	}
-	return live
+	return res
 }
 
 func humanize(t time.Time) string {

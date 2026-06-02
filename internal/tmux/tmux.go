@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -79,6 +80,32 @@ func ListSessions() ([]string, error) {
 		return nil, nil
 	}
 	return strings.Split(out, "\n"), nil
+}
+
+// ListSessionsWithLastAttached returns a name -> last-attached unix timestamp
+// map for every live session. Sessions that have never been attached report 0.
+func ListSessionsWithLastAttached() (map[string]int64, error) {
+	out, err := Output("list-sessions", "-F", "#{session_name} #{session_last_attached}")
+	if err != nil {
+		if strings.Contains(err.Error(), "no server running") {
+			return map[string]int64{}, nil
+		}
+		return nil, err
+	}
+	res := map[string]int64{}
+	if out == "" {
+		return res, nil
+	}
+	for _, line := range strings.Split(out, "\n") {
+		name, tsStr, ok := strings.Cut(line, " ")
+		if !ok {
+			res[line] = 0
+			continue
+		}
+		ts, _ := strconv.ParseInt(tsStr, 10, 64)
+		res[name] = ts
+	}
+	return res, nil
 }
 
 func ListWindows(session string) ([]string, error) {
