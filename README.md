@@ -1,8 +1,8 @@
 # azath
 
-A tmux + Copilot CLI orchestrator. Each project lives in its own House (tmux
-session) with persistent agent sessions that survive detach, terminal restarts,
-and reboots.
+A tmux orchestrator. Each project lives in its own House (tmux session) that are auto-populated by specified directories. Easily view, search, and move between projects. Think of it like a supercharged window tree viewer.
+
+<img width="1238" height="243" alt="Screenshot 2026-06-03 at 7 18 53 PM" src="https://github.com/user-attachments/assets/92366607-5d92-41f6-89cd-7dab8ddda601" />
 
 ## Install
 
