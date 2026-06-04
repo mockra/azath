@@ -233,11 +233,12 @@ func printList() error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "PROJECT\tSTATUS\tPATH\tLAST USED")
 	for _, p := range projects {
-		status := "stopped"
 		sessionName := tmuxNameFor(cfg, p.Name)
-		if _, ok := live[sessionName]; ok {
-			status = "running"
+		copilotID := ""
+		if s, ok := st.Get(p.Name); ok {
+			copilotID = s.CopilotSessionID
 		}
+		status := projectStatus(live, sessionName, copilotID)
 		last := "-"
 		if s, ok := st.Get(p.Name); ok && !s.LastUsedAt.IsZero() {
 			last = humanize(s.LastUsedAt)
@@ -278,10 +279,11 @@ func printListPlain() error {
 	}
 	for _, p := range projects {
 		sessionName := tmuxNameFor(cfg, p.Name)
-		mark := "\033[2m○\033[0m"
-		if _, ok := live[sessionName]; ok {
-			mark = "\033[32m●\033[0m"
+		copilotID := ""
+		if s, ok := st.Get(p.Name); ok {
+			copilotID = s.CopilotSessionID
 		}
+		mark := statusMark(projectStatus(live, sessionName, copilotID))
 		last := "-"
 		if s, ok := st.Get(p.Name); ok && !s.LastUsedAt.IsZero() {
 			last = humanize(s.LastUsedAt)
@@ -297,6 +299,33 @@ func liveSessions() map[string]int64 {
 		res = map[string]int64{}
 	}
 	return res
+}
+
+// projectStatus returns one of "stopped", "running", or "working" for the
+// given project. "working" means the Copilot CLI session is mid-turn.
+func projectStatus(live map[string]int64, sessionName, copilotSessionID string) string {
+	if _, ok := live[sessionName]; !ok {
+		return "stopped"
+	}
+	if copilotSessionID != "" {
+		switch copilot.SessionStatus(copilotSessionID) {
+		case copilot.StatusWorking:
+			return "working"
+		}
+	}
+	return "running"
+}
+
+// statusMark renders the colored bullet for a status string.
+func statusMark(status string) string {
+	switch status {
+	case "working":
+		return "\033[33m●\033[0m"
+	case "running":
+		return "\033[32m●\033[0m"
+	default:
+		return "\033[2m○\033[0m"
+	}
 }
 
 var errNoProjects = errors.New("no projects")
@@ -686,9 +715,16 @@ func cmdShow(args []string) error {
 	}
 	sessionName := tmuxNameFor(cfg, p.Name)
 	running := tmux.HasSession(sessionName)
+	copilotID := ""
+	if s, ok := st.Get(p.Name); ok {
+		copilotID = s.CopilotSessionID
+	}
 	status := "stopped"
 	if running {
 		status = "running"
+		if copilotID != "" && copilot.SessionStatus(copilotID) == copilot.StatusWorking {
+			status = "working"
+		}
 	}
 	fmt.Printf("%s\n", p.Name)
 	fmt.Printf("status   %s\n", status)
