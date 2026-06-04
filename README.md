@@ -55,6 +55,9 @@ start-with = "editor"               # skip the agent; open nvim in the first win
 [project.home]
 path = "~"
 start-with = "shell"                # plain login shell
+
+[project.prs]
+command = "oponn"                   # single-window shell project; no agent or editor
 ```
 
 ## State

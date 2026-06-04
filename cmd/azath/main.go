@@ -470,6 +470,9 @@ func cmdUp(args []string) error {
 // first window, and whether that command launches the agent (used to gate
 // copilot session-ID capture).
 func buildStartCommand(p project.Project, resumeID string) (string, bool) {
+	if strings.TrimSpace(p.Command) != "" {
+		return p.Command, false
+	}
 	switch p.StartWith {
 	case config.StartWithShell:
 		return "", false
@@ -729,8 +732,12 @@ func cmdShow(args []string) error {
 	fmt.Printf("%s\n", p.Name)
 	fmt.Printf("status   %s\n", status)
 	fmt.Printf("path     %s\n", p.Path)
-	fmt.Printf("agent    %s\n", p.AgentCommand)
-	fmt.Printf("editor   %s (%s)\n", p.Editor, p.EditorPlacement)
+	if p.Command != "" {
+		fmt.Printf("command  %s\n", p.Command)
+	} else {
+		fmt.Printf("agent    %s\n", p.AgentCommand)
+		fmt.Printf("editor   %s (%s)\n", p.Editor, p.EditorPlacement)
+	}
 	if s, ok := st.Get(p.Name); ok {
 		if !s.LastUsedAt.IsZero() {
 			fmt.Printf("used     %s\n", humanize(s.LastUsedAt))

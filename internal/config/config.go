@@ -27,6 +27,7 @@ const (
 
 type Project struct {
 	Path            string `toml:"path"`
+	Command         string `toml:"command"`
 	AgentCommand    string `toml:"agent-command"`
 	Editor          string `toml:"editor"`
 	EditorPlacement string `toml:"editor-placement"`
@@ -168,7 +169,7 @@ func (c *Config) validate() error {
 		return fmt.Errorf("invalid start-with %q (want: agent, editor, shell)", c.StartWith)
 	}
 	for name, p := range c.Projects {
-		if p.Path == "" {
+		if p.Path == "" && p.Command == "" {
 			return fmt.Errorf("project %q is missing path", name)
 		}
 		if p.StartWith != "" {

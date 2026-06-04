@@ -12,6 +12,7 @@ import (
 type Project struct {
 	Name            string
 	Path            string
+	Command         string
 	AgentCommand    string
 	Editor          string
 	EditorPlacement config.Placement
@@ -81,9 +82,14 @@ func Find(cfg config.Config, name string) (Project, error) {
 }
 
 func merge(name string, p config.Project, cfg config.Config, fromConfig bool) Project {
+	path := p.Path
+	if path == "" && p.Command != "" {
+		path = os.Getenv("HOME")
+	}
 	out := Project{
 		Name:            name,
-		Path:            p.Path,
+		Path:            path,
+		Command:         p.Command,
 		AgentCommand:    p.AgentCommand,
 		Editor:          p.Editor,
 		EditorPlacement: config.Placement(p.EditorPlacement),
