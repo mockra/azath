@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -40,7 +41,9 @@ Default (no args): azath dash.
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "azath:", err)
+		if !errors.Is(err, errNoProjects) {
+			fmt.Fprintln(os.Stderr, "azath:", err)
+		}
 		os.Exit(1)
 	}
 }
@@ -296,6 +299,19 @@ func liveSessions() map[string]int64 {
 	return res
 }
 
+var errNoProjects = errors.New("no projects")
+
+func printNoProjects(cfg config.Config) {
+	path := cfg.Path
+	if path == "" {
+		path = config.DefaultPath()
+	}
+	fmt.Fprintln(os.Stderr, "azath: no projects found.")
+	fmt.Fprintln(os.Stderr, "Add a [projects.<name>] entry or set a project-root to scan in")
+	fmt.Fprintf(os.Stderr, "  %s\n", path)
+	fmt.Fprintln(os.Stderr, "See `azath config` for the current settings.")
+}
+
 func humanize(t time.Time) string {
 	d := time.Since(t).Round(time.Second)
 	switch {
@@ -512,9 +528,13 @@ func cmdDown(args []string) error {
 }
 
 func cmdDash() error {
-	cfg, _, _, err := loadAll()
+	cfg, _, projects, err := loadAll()
 	if err != nil {
 		return err
+	}
+	if len(projects) == 0 {
+		printNoProjects(cfg)
+		return nil
 	}
 	dash := cfg.DashSession
 	if !tmux.HasSession(dash) {
@@ -548,8 +568,9 @@ func cmdPick() error {
 			return fmt.Errorf("list projects: %w", err)
 		}
 		if len(strings.TrimSpace(string(input))) == 0 {
-			fmt.Fprintln(os.Stderr, "azath: no projects discovered")
-			return nil
+			cfg, _, _, _ := loadAll()
+			printNoProjects(cfg)
+			return errNoProjects
 		}
 
 		fzf := exec.Command("fzf",
