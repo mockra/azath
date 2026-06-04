@@ -7,6 +7,14 @@ A tmux orchestrator. Each project lives in its own House (tmux session) that are
 ## Install
 
 ```sh
+go install github.com/mockra/azath/cmd/azath@latest
+```
+
+Make sure `$(go env GOBIN)` (or `~/go/bin`) is on your `PATH`.
+
+To build from a clone instead:
+
+```sh
 cd ~/code/azath
 make install   # builds and symlinks to ~/bin/azath
 ```
