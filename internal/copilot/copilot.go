@@ -1,10 +1,11 @@
 package copilot
 
 import (
+	"crypto/rand"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -12,67 +13,16 @@ func sessionStateDir() string {
 	return filepath.Join(os.Getenv("HOME"), ".copilot", "session-state")
 }
 
-// SnapshotSessionIDs returns the set of existing copilot session IDs (UUID
-// directory names) before launching an agent. Compare with NewSessionIDs after
-// the agent starts to discover the new session ID.
-func SnapshotSessionIDs() (map[string]bool, error) {
-	out := map[string]bool{}
-	entries, err := os.ReadDir(sessionStateDir())
+// NewSessionID generates a UUID for a new Copilot session.
+func NewSessionID() (string, error) {
+	var id [16]byte
+	_, err := rand.Read(id[:])
 	if err != nil {
-		if os.IsNotExist(err) {
-			return out, nil
-		}
-		return nil, err
+		return "", fmt.Errorf("generate Copilot session ID: %w", err)
 	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if looksLikeUUID(name) {
-			out[name] = true
-		}
-	}
-	return out, nil
-}
-
-// NewestSessionSince returns the newest session-state UUID directory created
-// since the snapshot was taken. Returns "" if none found.
-func NewestSessionSince(before map[string]bool) (string, error) {
-	entries, err := os.ReadDir(sessionStateDir())
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", err
-	}
-	type candidate struct {
-		name    string
-		modTime int64
-	}
-	var cands []candidate
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if !looksLikeUUID(name) {
-			continue
-		}
-		if before[name] {
-			continue
-		}
-		info, err := e.Info()
-		if err != nil {
-			continue
-		}
-		cands = append(cands, candidate{name: name, modTime: info.ModTime().UnixNano()})
-	}
-	if len(cands) == 0 {
-		return "", nil
-	}
-	sort.Slice(cands, func(i, j int) bool { return cands[i].modTime > cands[j].modTime })
-	return cands[0].name, nil
+	id[6] = (id[6] & 0x0f) | 0x40
+	id[8] = (id[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", id[:4], id[4:6], id[6:8], id[8:10], id[10:]), nil
 }
 
 func looksLikeUUID(s string) bool {

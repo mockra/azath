@@ -405,7 +405,9 @@ func cmdUp(args []string) error {
 		s, _ := st.Get(p.Name)
 		s.LastUsedAt = time.Now()
 		st.Set(p.Name, s)
-		_ = st.Save()
+		if err := st.Save(); err != nil {
+			return fmt.Errorf("save project state: %w", err)
+		}
 		return tmux.AttachOrSwitch(sessionName)
 	}
 
@@ -416,11 +418,22 @@ func cmdUp(args []string) error {
 		}
 	}
 
-	startCmd, startsAgent := buildStartCommand(p, resumeID)
+	startCmd, sessionID, err := buildStartCommand(p, resumeID)
+	if err != nil {
+		return err
+	}
 
-	var before map[string]bool
-	if startsAgent {
-		before, _ = copilot.SnapshotSessionIDs()
+	now := time.Now()
+	s, _ := st.Get(p.Name)
+	if sessionID != "" {
+		s.CopilotSessionID = sessionID
+	}
+	s.TmuxSession = sessionName
+	s.StartedAt = now
+	s.LastUsedAt = now
+	st.Set(p.Name, s)
+	if err := st.Save(); err != nil {
+		return fmt.Errorf("save project state: %w", err)
 	}
 
 	if err := tmux.NewDetached(sessionName, p.Path, startCmd); err != nil {
@@ -431,73 +444,50 @@ func cmdUp(args []string) error {
 		_ = tmux.Run("new-window", "-t", "="+sessionName, "-n", "post-start", "-c", p.Path, p.PostStart)
 	}
 
-	if startsAgent {
-		// Give copilot a moment to write its session-state dir.
-		go func() {
-			time.Sleep(3 * time.Second)
-			id, _ := copilot.NewestSessionSince(before)
-			if id == "" {
-				return
-			}
-			st2, err := state.Load(cfg.StateFile)
-			if err != nil {
-				return
-			}
-			s, _ := st2.Get(p.Name)
-			s.TmuxSession = sessionName
-			s.CopilotSessionID = id
-			if s.StartedAt.IsZero() {
-				s.StartedAt = time.Now()
-			}
-			s.LastUsedAt = time.Now()
-			st2.Set(p.Name, s)
-			_ = st2.Save()
-		}()
-	}
-
-	now := time.Now()
-	s, _ := st.Get(p.Name)
-	s.TmuxSession = sessionName
-	s.StartedAt = now
-	s.LastUsedAt = now
-	st.Set(p.Name, s)
-	_ = st.Save()
-
 	return tmux.AttachOrSwitch(sessionName)
 }
 
 // buildStartCommand returns the shell command to run as the project session's
-// first window, and whether that command launches the agent (used to gate
-// copilot session-ID capture).
-func buildStartCommand(p project.Project, resumeID string) (string, bool) {
+// first window, and the Copilot session ID when launching Copilot directly.
+func buildStartCommand(p project.Project, sessionID string) (string, string, error) {
 	if strings.TrimSpace(p.Command) != "" {
-		return p.Command, false
+		return p.Command, "", nil
 	}
 	switch p.StartWith {
 	case config.StartWithShell:
-		return "", false
+		return "", "", nil
 	case config.StartWithEditor:
 		if strings.TrimSpace(p.Editor) == "" {
-			return "", false
+			return "", "", nil
 		}
-		return p.Editor + " .", false
+		return p.Editor + " .", "", nil
 	default:
-		return buildAgentCommand(p, resumeID), true
+		if !isCopilotCommand(p.AgentCommand) {
+			return buildAgentCommand(p, ""), "", nil
+		}
+		if sessionID == "" {
+			var err error
+			sessionID, err = copilot.NewSessionID()
+			if err != nil {
+				return "", "", err
+			}
+		}
+		return buildAgentCommand(p, sessionID), sessionID, nil
 	}
 }
 
-func buildAgentCommand(p project.Project, resumeID string) string {
+func buildAgentCommand(p project.Project, sessionID string) string {
 	base := strings.TrimSpace(p.AgentCommand)
 	if base == "" {
 		return ""
 	}
-	if resumeID == "" {
+	if sessionID == "" {
 		return base
 	}
-	// Inject --resume=<id> only for the bare copilot command. For wrappers
+	// Inject --session-id=<id> only for the bare copilot command. For wrappers
 	// like `github-dev`, we cannot safely add CLI flags.
 	if isCopilotCommand(base) {
-		return base + " --resume=" + resumeID
+		return base + " --session-id=" + sessionID
 	}
 	return base
 }

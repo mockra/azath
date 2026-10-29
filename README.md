@@ -63,8 +63,10 @@ command = "oponn"                   # single-window shell project; no agent or e
 ## State
 
 Managed at `~/.local/share/azath/state.toml`. Tracks active tmux sessions and
-the most recent Copilot session ID per project so a reboot can cold-resume
-with `copilot --resume <id>`.
+the most recent Copilot session ID per project. For direct `copilot` commands,
+azath saves a UUID before launch and passes `--session-id <id>` to create or
+cold-resume the session. Use `azath up <project> --fresh` to start a new
+conversation. Wrapper commands are launched unchanged.
 
 ## Commands
 
